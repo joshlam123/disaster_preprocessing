@@ -2,7 +2,7 @@ import rasterio as rio, numpy as np, geopandas as gpd, rioxarray as rx, os
 from rasterio.plot import show, plotting_extent
 from shapely.geometry import box, mapping
 from osgeo import gdal, gdal_array
-from preprocessing.common import * 
+from disaster_preprocessing.code import common
 
 def open_and_clip_datasets(folder:str, working_folder:str, dest_folder:str, files:list, 
                              nodata:float = 10e-5, gjson:str = "../data/jkt_shape/epsg4326/north_jakarta.geojson"):
