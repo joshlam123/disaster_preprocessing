@@ -1,6 +1,6 @@
 from ee import Image
 from ee.batch import Task, Export
-from preprocessing.common import *
+from disaster_preprocessing.code import common
 from shapely.geometry import Polygon
 from shapely.ops import cascaded_union
 import fiona, json, ee

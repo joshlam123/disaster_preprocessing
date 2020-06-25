@@ -1,9 +1,10 @@
-import subprocess, os, shapely, fiona, logging
+import subprocess, os, shapely, fiona, logging, sys
+
 import geopandas as gpd, pandas as pd, rasterio as rio, osmnx as ox
 
 from osgeo import ogr, gdal
-from preprocessing.common import *
-from preprocessing.griddata import GridData
+from disaster_preprocessing.code import common
+from disaster_preprocessing.code.extract_data.griddata import GridData
 
 def shapeify(inputVec:str, outputImg:str, \
              refImg:str, nodata:float = 10e-5):

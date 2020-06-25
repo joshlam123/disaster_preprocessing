@@ -4,7 +4,7 @@ from rasterio.plot import show
 from rasterio.plot import plotting_extent
 from rasterio.mask import mask
 from rasterio.warp import calculate_default_transform, reproject, Resampling
-from preprocessing.common import * 
+from disaster_preprocessing.code import common
 
 from shapely.geometry import Point
 

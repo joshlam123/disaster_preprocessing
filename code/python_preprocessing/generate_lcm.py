@@ -1,5 +1,5 @@
-from preprocessing.pp_raster import * 
-from preprocessing.common import * 
+from disaster_preprocessing.code.python_preprocessing import pp_raster
+from disaster_preprocessing.code import common
 from rasterio import features
 import os
 

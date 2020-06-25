@@ -12,17 +12,17 @@ from rasterio import features
 from rasterio.crs import CRS
 
 import geopandas as gpd, networkx as nx, earthpy.plot as ep, rasterio as rio, matplotlib.pyplot as plt
+from disaster_preprocessing.code import common
 
 
-def convert_params(file:str = '../data/landcover/epsg4326/convert_files/params.csv'):
+def convert_params(file:str):
     '''
     A function to process to convert a csv file containing the parameters parameters into landcover.
 
     Parameters
     ----------
 
-        file: a full path filename containing the .csv file with the parameters for landcover. If default, it will 
-        look in the landcover/epsg4326/convert_files folder for params.csv (Optional)
+        file: a full path filename containing the .csv file with the parameters for landcover. (Required)
 
     Output
     ------
@@ -50,7 +50,7 @@ def convert_params(file:str = '../data/landcover/epsg4326/convert_files/params.c
 
 
 # opening the mapping file and reading it
-def read_category(category_file:str = "../data/landcover/epsg4326/convert_files/mapping.json"):
+def read_category(category_file:str):
     '''
     This function is to raster a NumPy array into a destination file using GDAL. 
 
@@ -58,7 +58,7 @@ def read_category(category_file:str = "../data/landcover/epsg4326/convert_files/
     ----------
 
         category_file: a full path filename containing the .json file with the full landcover parameter mapping converted from Google Earth. 
-        If default, it will look in the landcover/epsg4326/convert_files folder for mapping.json (Optional)
+        (Required)
 
         For more details: look here https://developers.google.com/earth-engine/datasets/catalog/ESA_GLOBCOVER_L4_200901_200912_V2_3
     
@@ -349,8 +349,3 @@ def get_geo_df_type_meta(gdf):
             print(f"Minimum Dtype for {item} : {d_type[item]}")
     return d_type
 
-
-
-
-category = read_category()
-data_conv_dict, trans_dict = convert_params()
