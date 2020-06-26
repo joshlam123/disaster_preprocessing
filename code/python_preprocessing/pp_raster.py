@@ -14,6 +14,92 @@ from rasterio.crs import CRS
 import geopandas as gpd, networkx as nx, earthpy.plot as ep, rasterio as rio, matplotlib.pyplot as plt
 from disaster_preprocessing.code import common
 
+class PrepareRaster():
+    '''
+    PrepareRaster is a class to allow usage of category, data_conv_dict, and trans_dict throughout the script.
+    '''
+
+    def __init__(self, category:dict, data_conv_dict:dict, trans_dict:dict):
+        '''
+        Initialise the entire class with the three arguments
+        Parameters
+        ----------
+            
+            category: a dictionary mapping a land cover type to a numerical index (Required)
+
+            data_conv_dict: a dictionary containing the mapping of numerical indices to parameters (Required)
+            
+            trans_dict: a dictionary containing the translation of parameters to extended parameters (Required)
+
+        '''
+        self.data_conv_dict = data_conv_dict
+        self.category = category 
+        self.trans_dict = trans_dict
+
+    def mapToCategory(self, item):
+        '''
+        This function is used to map a data entry within the landcover map to it's category. Meant to be used as a sort of pandas vectorisation
+        inspired from: https://towardsdatascience.com/how-to-make-your-pandas-loop-71-803-times-faster-805030df4f06
+
+        Parameters
+        ----------
+            
+            category: a dictionary containing the mapping of items (Required)
+            item: any indexable object. (Required)
+        
+        Output
+        ------
+
+            category[item]: is a NumPy array containing the mapping of items.
+        
+        Examples (taken from generate_lcm.py)
+        --------
+
+        all_lidar_categories = list()
+        all_info_cat = list()
+        
+        for idx, item in enumerate(lidar_dem.data):
+            if idx % 1000 == 0: print(idx/len(lidar_dem)*100)
+            all_lidar_categories.append(list(map(mapToCategory, item)))
+
+        '''
+
+        return self.category[item]
+
+    # mapping function that will be used to map a category to it's corresponding landcover values
+    def mapToLCM(self, item):
+        '''
+        This function is to raster a NumPy array into a destination file using GDAL. 
+
+        Parameters
+        ----------
+
+            item: any indexable object. (Required)
+        
+        Output
+        ------
+
+            multiple return items: containing the mapping of either
+        
+        Examples
+        --------
+
+        all_lidar_categories = list()
+
+        for idx, item in enumerate(all_lidar_categories):
+            if idx % 1000 == 0: print(idx/len(lidar_dem)*100)
+            all_info_cat.append(list(map(mapToLCM, item)))
+
+        '''
+
+        # If landcover is unclassified, it is treated as having 0 entry.
+        if item == "UNCLASSIFIED":
+            return 0, "UNCLASSIFIED", 0, 0, 0, 0, 0, 0, 0, 0
+        else:
+            translated_item = self.data_conv_dict[self.trans_dict[item]]
+            return translated_item['id'], translated_item['landunits'], translated_item['n'], translated_item['rr'], translated_item['per'],\
+                    translated_item['ch'], translated_item['lai'], translated_item['ksat1'], translated_item['thetas1'],\
+                     translated_item['thetai1'], translated_item['psi']
 
 def convert_params(file:str):
     '''
@@ -79,70 +165,6 @@ def read_category(category_file:str):
     category = {int(k):v for k,v in category.items()}
     return category
 
-
-def mapToCategory(item):
-    '''
-    This function is used to map a data entry within the landcover map to it's category. Meant to be used as a sort of pandas vectorisation
-    inspired from: https://towardsdatascience.com/how-to-make-your-pandas-loop-71-803-times-faster-805030df4f06
-
-    Parameters
-    ----------
-
-        item: any indexable object. (Required)
-    
-    Output
-    ------
-
-        category[item]: is a NumPy array containing the mapping of items.
-    
-    Examples (taken from generate_lcm.py)
-    --------
-
-    all_lidar_categories = list()
-    all_info_cat = list()
-    
-    for idx, item in enumerate(lidar_dem.data):
-        if idx % 1000 == 0: print(idx/len(lidar_dem)*100)
-        all_lidar_categories.append(list(map(mapToCategory, item)))
-
-    '''
-
-    return category[item]
-
-# mapping function that will be used to map a category to it's corresponding landcover values
-def mapToLCM(item):
-    '''
-    This function is to raster a NumPy array into a destination file using GDAL. 
-
-    Parameters
-    ----------
-
-        item: any indexable object. (Required)
-    
-    Output
-    ------
-
-        multiple return items: containing the mapping of either
-    
-    Examples
-    --------
-
-    all_lidar_categories = list()
-
-    for idx, item in enumerate(all_lidar_categories):
-        if idx % 1000 == 0: print(idx/len(lidar_dem)*100)
-        all_info_cat.append(list(map(mapToLCM, item)))
-
-    '''
-
-    # If landcover is unclassified, it is treated as having 0 entry.
-    if item == "UNCLASSIFIED":
-        return 0, "UNCLASSIFIED", 0, 0, 0, 0, 0, 0, 0, 0
-    else:
-        translated_item = data_conv_dict[trans_dict[item]]
-        return translated_item['id'], translated_item['landunits'], translated_item['n'], translated_item['rr'], translated_item['per'],\
-                translated_item['ch'], translated_item['lai'], translated_item['ksat1'], translated_item['thetas1'],\
-                 translated_item['thetai1'], translated_item['psi']
 
 def generate_keys_dict(data_conv_dict:dict, all_info_cat:list):
     '''
@@ -218,13 +240,13 @@ def generate_dataframe(all_info_cat:list, longs:np.array, lats:np.array):
 
         df1 = pd.DataFrame(item, columns=["id", "landunits", "n", "rr", "per", "ch", "lai", "ksat1", "thetas1", "thetai1", "psi1"])
 
-        df1["Long"] = longs[idx]
-        df1["Lat"] = lats[idx]
+        df1["long"] = longs[idx]
+        df1["lat"] = lats[idx]
 
         frames = [df, df1]
         df = pd.concat(frames)
     
-    geometry = [Point(xy) for xy in zip(df.Long, df.Lat)]
+    geometry = [Point(xy) for xy in zip(df.long, df.lat)]
     df['geometry'] = geometry
     return df
 
@@ -254,22 +276,12 @@ def fix_df_na(data:pd.DataFrame, na_val:float = 0):
 
     '''
     for column in data.columns.tolist():
-        if column == 'landunit':
-            data[column] = data['id'].fillna(na_val = na_val)
+        if column == 'landunits':
+            data[column] = data['id'].fillna(na_val)
         else:
-            data[column] = data[column].fillna(naval = na_val)
+            data[column] = data[column].fillna(na_val)
 
-    # data['n'] = data['n'].fillna(naval)
-    # data['rr'] = data['rr'].fillna(naval)
-    # data['per'] = data['per'].fillna(naval)
-    # data['ch'] = data['ch'].fillna(naval)
-    # data['lai'] = data['lai'].fillna(naval)
-    # data['thetas1'] = data['thetas1'].fillna(naval)
-    # data['thetai1'] = data['thetai1'].fillna(naval)
-    # data['ksat1'] = data['ksat1'].fillna(naval)
-    # data['psi1'] = data['psi1'].fillna(naval)
-
-    return df
+    return data
 
 def generate_geo_df(data:pd.DataFrame, p2:str, drop_columns:list, drop_all:bool = False):
     '''
@@ -306,7 +318,7 @@ def generate_geo_df(data:pd.DataFrame, p2:str, drop_columns:list, drop_all:bool 
         drop_columns = ['landunits', 'id', 'long', 'lat', 'n', 'rr', 'per', 'ch', 'lai', 'ksat1', 'thetas1', 'thetai1', 'psi']
 
     df_copy = data.drop(columns = drop_columns, axis = 1)
-    gdf = gpd.GeoDataFrame(df_copy, crs = p2, geometry = df['geometry'])
+    gdf = gpd.GeoDataFrame(df_copy, crs = p2, geometry = data['geometry'])
     return gdf
 
 def get_geo_df_type_meta(gdf):
@@ -348,4 +360,5 @@ def get_geo_df_type_meta(gdf):
             d_type[item] = rio.dtypes.get_minimum_dtype(gdf[item])
             print(f"Minimum Dtype for {item} : {d_type[item]}")
     return d_type
+
 
