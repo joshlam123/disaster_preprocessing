@@ -1,4 +1,4 @@
-import os, shutil, logging
+import os, shutil, logging, sys
 import earthpy.plot as ep, rasterio as rio, matplotlib.pyplot as plt, rioxarray as rx, numpy as np, geopandas as gpd, fiona as fn
 from rasterio.plot import show, plotting_extent
 from subprocess import Popen, run
@@ -11,6 +11,8 @@ from distutils.version import LooseVersion
 from pyproj.enums import WktVersion
 from osgeo import osr
 from tqdm import tqdm
+from shapely.geometry import Point
+from disaster_preprocessing.code.extract_data.griddata import GridData
 
 def change_to_mercator(new_crs:int = 900913):
     '''
@@ -228,7 +230,7 @@ def create_folders(dest:str, folders:list = list()):
     '''    
 
     if len(folders) == 0:
-        folders = ['river', 'reprojection', 'fixed_raster', 'base_maps', 'maps', 'building', 'rainfall', 'base_files']
+        folders = ['river', 'reprojection', 'fixed_raster', 'base_maps', 'maps', 'building']
 
     created = list()
     for item in folders:
@@ -519,15 +521,31 @@ def update_meta(meta:dict, p2:str, **kwargs):
     
     folder, item = "../data/experiments/base_maps/", "rr.tif"
     _, rio_crs, *unused = get_meta(folder, item)
-    update_meta({"compress":"lzw", "nodata":0.0001, "height":348, "width":966}, p2 = rio_crs)
+    update_meta(meta = meta,  p2 = rio_crs, compress = "lzw", nodata = 0.0001, height = 348, width = 966)
     
 
     '''
 
     kwarg = kwargs
+    print("EXTRA UPDATE ARGUMENTS", kwarg)
     if len(kwarg) > 0:
-        for k,v in kwarg.items():
-            meta.update(k = v)
+        for key, val in kwarg.items():
+            if key == "dtype":
+                meta.update(dtype = val)
+            elif key == "driver":
+                meta.update(driver = val)
+            elif key == "nodata":
+                meta.update(nodata = val)
+            elif key == "width":
+                meta.update(width = val)
+            elif key == "height":
+                meta.update(height = val)
+            elif key == "crs":
+                meta.update(crs = val)
+            elif key == "transform":
+                meta.update(transform = val)
+            elif key == "compress":
+                meta.update(compress = val)
     else:
         meta.update(dtype = rio.float32) # sample code for how you convert metadata
         meta.update(nodata = 10e-5)
@@ -643,7 +661,7 @@ def set_zoom_scale(meta1:dict, meta2:dict) -> int:
     
     return (x_zoom, y_zoom)
 
-def generate_river_fill(data:np.array, zoom:tuple, meta:dict, error_thres:float = 4e-1, algo:str = 'river'):
+def generate_river_fill(data:np.array, zoom:tuple, meta:dict, grids:GridData, error_thres:float = 4e-1, algo:str = 'river'):
     '''
     This function is used to generate data points using a zoom factor, the metadata, and the data array
     
@@ -655,6 +673,8 @@ def generate_river_fill(data:np.array, zoom:tuple, meta:dict, error_thres:float 
         zoom: a tuple containing the x and y zoom factors in the form (x_zoom, y_zoom) (Required)
 
         meta: a dictionary containing metadata corresponding to the data array (Required)
+
+        grids: a GridData class item (Required)
         
         error_thres: an error threshold for correcting the grid between 0 and 1. 
         If you give a higher value, less cells will be corrected and some may even be deleted because the grid count 
@@ -685,6 +705,13 @@ def generate_river_fill(data:np.array, zoom:tuple, meta:dict, error_thres:float 
     
     geos, points = list(), list()
 
+    
+    no_grid_cells = zoom[0] * zoom[1]
+
+    # grids = GridData(data = hi_res_data.data, zoom = zoom)
+    
+    traverse_grid = generate_grids()
+    
     # get the nodata value
     nd = meta['nodata']
     map_trans = meta['transform']
@@ -692,13 +719,6 @@ def generate_river_fill(data:np.array, zoom:tuple, meta:dict, error_thres:float 
     print("---- PROCESSING ----")
     print("NODATA", nd)
     print("DATA TRANSFORM", map_trans)
-    
-    no_grid_cells = zoom[0] * zoom[1]
-
-    grids = GridData(data = hi_res_data.data, zoom = zoom)
-    
-    traverse_grid = generate_grids()
-    
 
     def fill_algo(counter:int, item):
         '''
@@ -718,6 +738,7 @@ def generate_river_fill(data:np.array, zoom:tuple, meta:dict, error_thres:float 
             no_filled_grids: an integer number for the number of filled grids
         
         '''
+
         
         if algo == "river":
             # account for fill
@@ -1034,7 +1055,6 @@ def checkExist(file:str, path:str='default'):
 
     except IndexError as e:
         print("File does not exist")
-        sys.stdout.flush()
         return True
 
 # generate affine projection that creates long/lats

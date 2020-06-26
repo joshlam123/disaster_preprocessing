@@ -1,12 +1,11 @@
 from tqdm import tqdm
-from shapely.geometry import Point
 import numpy as np
 
 class GridData:
     '''
     GridData is a class that implements the counting and iteration of grids based on the zoom scale, and map iteration counter
     '''
-    def __init__(self, data:np.array, zoom:tuple):
+    def __init__(self, data:np.array, zoom:tuple, nd):
         '''
         Used to initialise the GridData class structure with the data array, and zoom_scale
 
@@ -16,6 +15,8 @@ class GridData:
             data_array: a NumPy array containing your data (Required)
 
             zoom: a tuple containing the x and y zoom factors in the form (x_zoom, y_zoom) (Required)
+
+            nd: a nodata value (Required)
 
         EXAMPLES
         --------
@@ -27,6 +28,7 @@ class GridData:
         self.x_zoom, self.y_zoom = zoom
         self.col_counter = 0
         self.total_counted_grids = 0
+        self.nd = nd
         
         print("DATA SIZE", data.shape)
         
@@ -59,7 +61,7 @@ class GridData:
                 
                 self.total_counted_grids += 1
                     
-                if self.data[row_index][col_index] != nd:
+                if self.data[row_index][col_index] != self.nd:
                     no_filled_grids += 1
                     
         self.col_counter += 1

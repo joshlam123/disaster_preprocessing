@@ -1,9 +1,9 @@
-from disaster_preprocessing.code.python_preprocessing import pp_raster
-from disaster_preprocessing.code import common
+from disaster_preprocessing.code.python_preprocessing.pp_raster import *
+from disaster_preprocessing.code.common import *
 from rasterio import features
 import os
 
-def generate_pre_dict(src_file:str):
+def generate_pre_dict(src_file:str, category:dict, data_conv_dict:dict, trans_dict:dict):
     '''
     A function to process to obtain a map a dictionary containing the category mapping to a numpy array
 
@@ -11,6 +11,12 @@ def generate_pre_dict(src_file:str):
     ----------
 
         src_file: a string with the file name of your params file (Required)
+
+        category: a dictionary mapping a land cover type to a numerical index (Required)
+
+        data_conv_dict: a dictionary containing the mapping of numerical indices to parameters (Required)
+        
+        trans_dict: a dictionary containing the translation of parameters to extended parameters (Required)
 
     Output
     ------
@@ -25,6 +31,8 @@ def generate_pre_dict(src_file:str):
 
     '''
 
+    rasterPrepare = PrepareRaster(category = category, data_conv_dict = data_conv_dict, trans_dict = trans_dict)
+
     lidar_dem, meta = open_rio(src_file)
     
     all_lidar_categories = list()
@@ -32,11 +40,11 @@ def generate_pre_dict(src_file:str):
     
     for idx, item in enumerate(lidar_dem.data):
         if idx % 1000 == 0: print(idx/len(lidar_dem)*100)
-        all_lidar_categories.append(list(map(mapToCategory, item)))
+        all_lidar_categories.append(list(map(rasterPrepare.mapToCategory, item)))
 
     for idx, item in enumerate(all_lidar_categories):
         if idx % 1000 == 0: print(idx/len(lidar_dem)*100)
-        all_info_cat.append(list(map(mapToLCM, item)))
+        all_info_cat.append(list(map(rasterPrepare.mapToLCM, item)))
     
     all_keys, all_info_dict = generate_keys_dict(data_conv_dict, all_info_cat)
     return meta, all_info_cat
@@ -74,14 +82,14 @@ def process_df(all_info_cat:list, src_file:str):
     
     data = generate_dataframe(all_info_cat, longs, lats)
     data = fix_df_na(data = data, na_val = 10e-5)
-    gdf = generate_geo_df(data = data, p2 = p2, drop_columns = ['landunits', 'id', 'Long', 'Lat'])
+    gdf = generate_geo_df(data = data, p2 = p2, drop_columns = ['id', 'long', 'lat'])
     
     d_types = get_geo_df_type_meta(gdf)
     d_types['landunits'] == 'float32'
 
     return gdf, d_types, p2
     
-def do_preprocessing(srcfile:str):
+def do_preprocessing(srcfile:str, category:dict, data_conv_dict:dict, trans_dict:dict):
     '''
     A function to preprocess a sourcefile into a list with the mapped categories
 
@@ -89,6 +97,12 @@ def do_preprocessing(srcfile:str):
     ----------
 
         srcfile: a string with the .tif map source file (Required)
+
+        category: a dictionary mapping a land cover type to a numerical index (Required)
+
+        data_conv_dict: a dictionary containing the mapping of numerical indices to parameters (Required)
+        
+        trans_dict: a dictionary containing the translation of parameters to extended parameters (Required)
 
 
     Output
@@ -106,24 +120,8 @@ def do_preprocessing(srcfile:str):
 
     '''
 
-    meta, all_info_cat = generate_pre_dict(srcfile)
+    meta, all_info_cat = generate_pre_dict(srcfile, category, data_conv_dict, trans_dict)
 
     print("Successfully generated metadata and category mapping for all files!")
     return meta, all_info_cat
 
-
-if __name__ == '__main__':
-    # src_file = '../data/landcover/epsg4326/lcm_Indonesia_Semarang.tif'
-    # dst_file = '../data/experiments/semarang/'
-
-    if len(os.argv) < 1:
-        src_file = '../data/landcover/epsg4326/lcm_Indonesia_Semarang.tif'
-        dst_file = '../data/experiments/semarang/'
-    else:
-        src_file = os.argv[0]
-        dst_file = os.argv[1]
-
-    meta, all_info_cat = do_preprocessing(src_file)
-    meta = update_meta(meta)
-    gdf, d_types, p2 = process_df(all_info_cat, src_file, meta)
-    write_to_raster(gdf, meta, d_types, dst_file)

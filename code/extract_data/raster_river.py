@@ -2,8 +2,9 @@ import subprocess, os, shapely, fiona, logging, sys
 
 import geopandas as gpd, pandas as pd, rasterio as rio, osmnx as ox
 
+from shapely.geometry import Point
 from osgeo import ogr, gdal
-from disaster_preprocessing.code import common
+from disaster_preprocessing.code.common import *
 from disaster_preprocessing.code.extract_data.griddata import GridData
 
 def shapeify(inputVec:str, outputImg:str, \
@@ -62,6 +63,7 @@ def shapeify(inputVec:str, outputImg:str, \
 
     nd = Imgband.GetNoDataValue()
     print("NO DATA VALUE", nd)
+    
     if nd is not None:
         Band.SetNoDataValue(Imgband.GetNoDataValue())
     else:
@@ -361,18 +363,42 @@ def generate_res_data(folder:str, ref_file:str = 'dem_hi_res.tif', map_type:str 
 
     '''
 
+    refFil = ref_file
+
     if map_type == "river":
-        dstFil, saveShpFil = folder + generated_ext + 'chanmask.tif', folder + generated_ext + 'river/jakarta_rivers.shp'
-        gdf = generate_osm_rast(['North Jakarta', 'Indonesia'], refFil, 'river', 'stream', 'riverbank', 'tidal', 'channel')
+
+        if "hi_res" in ref_file:
+            dstFil, saveShpFil = folder + folder_ext + 'fixed_raster/chanmask_hi_res.tif', folder + folder_ext + 'river/river.shp'
+        else:
+            dstFil, saveShpFil = folder + folder_ext + 'fixed_raster/chanmask.tif', folder + folder_ext + 'river/river.shp'
+
+        if not checkExist(folder + folder_ext + "river/", 'river.shp'):
+            gdf = generate_osm_rast(['North Jakarta', 'Indonesia'], "river", 'river', 'stream', 'riverbank', 'tidal', 'channel')
+            gdf.to_file(driver = 'ESRI Shapefile', filename = saveShpFil)
+
+        else:
+            gdf = gpd.read_file(saveShpFil)
 
     elif map_type == "building":
-        dstFil, saveShpFil = folder + folder_ext + 'fixed_raster/building.tif', \
+        if "hi_res" in ref_file:
+            dstFil, saveShpFil = folder + folder_ext + 'fixed_raster/building_hi_res.tif', \
                                 folder + folder_ext + 'building/building.shp'
+        else:
+            dstFil, saveShpFil = folder + folder_ext + 'fixed_raster/building.tif', \
+                                folder + folder_ext + 'building/building.shp'
+
+        if not checkExist(folder + folder_ext + "building/", 'building.shp'):
+            gdf = generate_osm_rast(['North Jakarta', 'Indonesia'], "building")
+            gdf.to_file(driver = 'ESRI Shapefile', filename = saveShpFil)
+
+        else:
+            gdf = gpd.read_file(saveShpFil)
+
+
     print("SHAPE FILE REFERENCE", saveShpFil)
     print("DESTINATION FILE", dstFil)
-        
-    refFil = folder + ref_file
-    gdf.to_file(driver = 'ESRI Shapefile', filename = saveShpFil)
+    
+    
     shapeify(inputVec=saveShpFil, outputImg=dstFil,\
          refImg=refFil)
     
@@ -407,32 +433,42 @@ def generate_maps(working_folder:str, folder:str, map_iter:list, ext:dict):
 
     generate_maps(working_folder = "../data/sample/", folder = "../data/sample/generated/raster_fix/", map_type = "river", folder_ext = extensions)
     '''
-
-    reference_file = current_folder + f"dem.tif"
-    ref_data, ref_meta = open_rio(reference_file)
     
     dem_hi_res = 'dem_hi_res.tif'
     dem_folder = working_folder + ext['required'] + 'datafiles/'
+    print("HIGH RES DEM FOLDER", dem_folder)
     
+    if os.path.exists(dem_folder + 'modified_dem/' + dem_hi_res) == False:
+        print("CLIPPED HIGH RES DEM DOES NOT EXIST. CLIPPING NOW")
+        # clip the high resolution dem if it has not already been clipped
+        open_and_clip_datasets(folder =  dem_folder, files = [dem_hi_res], \
+                               working_folder = working_folder, dest_folder = dem_folder + 'modified_dem/', \
+                               gjson = gj_ref_file)
+
     for map_item in map_iter:
+        if map_item == "river": title = "chanmask"
+        else: title = "building"
+
         print("********** GENERATING CORRECTION LAYER FOR", map_item, "**********")
 
-        if os.path.exists(dem_folder + 'modified_dem/' + dem_hi_res) == False:
-            print("CLIPPED HIGH RES DEM DOES NOT EXIST. CLIPPING NOW")
-            # clip the high resolution dem if it has not already been clipped
-            open_and_clip_datasets(folder =  dem_folder, files = [dem_hi_res], \
-                                   working_folder = working_folder, dest_folder = dem_folder + 'modified_dem/', \
-                                   gjson = gj_ref_file)
-        
         # generate high resolution data.
+        print(" ---- GENERATING HIGH RES DATA ----")
         generate_res_data(folder = working_folder, \
-                          ref_file = ext['required'] + f'datafiles/{dem_hi_res}.tif', map_type = map_item, folder_ext = ext['generated'])
+                          ref_file = dem_folder + "modified_dem/" + dem_hi_res, map_type = map_item, folder_ext = ext['generated'])
 
+        print(" ---- GENERATING LOW RES DATA ----")
         # generate low resolution data.
         generate_res_data(folder = working_folder, \
-                          ref_file = ext['generated'] + 'fixed_raster/dem.tif', map_type = map_item, folder_ext = ext['generated'])
+                          ref_file = working_folder + ext['generated'] + 'fixed_raster/dem.tif', map_type = map_item, folder_ext = ext['generated'])
 
-        src_file = folder + f'{map_item}.tif'
+
+        # open the low res and the high res file we just created
+        print("OPENING REFERNCE LOW RES DEM FILE")
+        reference_file = folder + "dem.tif"
+        ref_data, ref_meta = open_rio(reference_file)
+
+        print("OPENING GENERATED HIGH RES CHANNEL MASK FILE")
+        src_file = folder + f'{title}_hi_res.tif'
         hi_res_data, hi_res_meta = open_rio(src_file)
         bldg_arr = hi_res_data.data
 
@@ -440,7 +476,7 @@ def generate_maps(working_folder:str, folder:str, map_iter:list, ext:dict):
         print("HIGH RESOLUTION GRID SIZE", hi_res_meta['width'] * hi_res_meta['height'])
         
         zoom = set_zoom_scale(hi_res_meta, ref_meta)
-        grids = GridData(data = bldg_arr, zoom = zoom)
+        grids = GridData(data = bldg_arr, zoom = zoom, nd = hi_res_meta['nodata'])
 
         points, geos = generate_river_fill(ref_data.data, zoom = zoom, meta = ref_meta, grids = grids, error_thres = 2e-1, algo = "building")
         get_percentage_corrected(points, ref_data)
@@ -452,7 +488,7 @@ def generate_maps(working_folder:str, folder:str, map_iter:list, ext:dict):
         src_file = folder + "dem.tif"
         
         write_gdf_to_raster_gdal(data = gdf, selector = item, src_file = src_file, \
-                                 dest_file = folder + f'{map_item}_2.tif', \
+                                 dest_file = folder + f'{title}_2.tif', \
                                  meta = ref_meta)
         
         print("WROTE FILE FOR ITEM", map_item, "TO", folder + f'{map_item}_2.tif')
@@ -486,9 +522,9 @@ def generate_osm_rast(dest:str, map_type:str = 'river', *args):
     river_rast(['North Jakarta', 'Indonesia'], 'river', 'stream', 'riverbank', 'tidal', 'channel')
 
     '''
-
     if map_type == "river":
         gdf = get_place_river(dest, *[i for i in args])
+
     elif map_type == "building":
         gdf = ox.footprints_from_place(dest)
 
