@@ -60,10 +60,9 @@ def shapeify(inputVec:str, outputImg:str, \
 
     # Write data to band 1
     Band = Output.GetRasterBand(1)
-
     nd = Imgband.GetNoDataValue()
     print("NO DATA VALUE", nd)
-    
+
     if nd is not None:
         Band.SetNoDataValue(Imgband.GetNoDataValue())
     else:
@@ -484,10 +483,10 @@ def generate_maps(working_folder:str, folder:str, map_iter:list, ext:dict):
         df = generate_dataframe_from_points(points = points, geos = geos)
         gdf = gpd.GeoDataFrame(df)
         
-        
+        print(gdf.head())
         src_file = folder + "dem.tif"
         
-        write_gdf_to_raster_gdal(data = gdf, selector = item, src_file = src_file, \
+        write_gdf_to_raster_gdal(data = gdf, selector = "data", src_file = src_file, \
                                  dest_file = folder + f'{title}_2.tif', \
                                  meta = ref_meta)
         
