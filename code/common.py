@@ -1446,5 +1446,6 @@ def show_sample(file:str):
     red = raster.read(1)
     red = red.astype(float)
 
+    fig = plt.figure(figsize=(12,8))
     show(red)
 
