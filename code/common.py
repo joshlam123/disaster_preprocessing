@@ -1,5 +1,5 @@
 import os, shutil, logging, sys
-import earthpy.plot as ep, rasterio as rio, matplotlib.pyplot as plt, rioxarray as rx, numpy as np, geopandas as gpd, fiona as fn
+import earthpy.plot as ep, rasterio as rio, matplotlib.pyplot as plt, rioxarray as rx, numpy as np, geopandas as gpd, fiona as fn, pandas as pd
 from rasterio.plot import show, plotting_extent
 from subprocess import Popen, run
 from affine import Affine
