@@ -366,6 +366,7 @@ def generate_res_data(folder:str, ref_file:str = 'dem_hi_res.tif', map_type:str 
 
     if map_type == "river":
 <<<<<<< HEAD
+<<<<<<< HEAD
         title = "chanmask"
     elif map_type == "building":
         title = "building"
@@ -391,6 +392,8 @@ def generate_res_data(folder:str, ref_file:str = 'dem_hi_res.tif', map_type:str 
     else:
         gdf = gpd.read_file(saveShpFil)
 =======
+=======
+>>>>>>> f1e3cc212975b64793229fd7c4971e653f8c6c8a
 
         if "hi_res" in ref_file:
             dstFil, saveShpFil = folder + folder_ext + 'fixed_raster/chanmask_hi_res.tif', folder + folder_ext + 'river/river.shp'
@@ -418,6 +421,9 @@ def generate_res_data(folder:str, ref_file:str = 'dem_hi_res.tif', map_type:str 
 
         else:
             gdf = gpd.read_file(saveShpFil)
+<<<<<<< HEAD
+>>>>>>> f1e3cc212975b64793229fd7c4971e653f8c6c8a
+=======
 >>>>>>> f1e3cc212975b64793229fd7c4971e653f8c6c8a
 
 
@@ -505,7 +511,11 @@ def generate_maps(working_folder:str, folder:str, map_iter:list, ext:dict):
         grids = GridData(data = bldg_arr, zoom = zoom, nd = hi_res_meta['nodata'])
 
 <<<<<<< HEAD
+<<<<<<< HEAD
         points, geos = generate_river_fill(ref_data.data, zoom = zoom, meta = ref_meta, grids = grids, error_thres = 1e-1, algo = "building")
+=======
+        points, geos = generate_river_fill(ref_data.data, zoom = zoom, meta = ref_meta, grids = grids, error_thres = 2e-1, algo = "building")
+>>>>>>> f1e3cc212975b64793229fd7c4971e653f8c6c8a
 =======
         points, geos = generate_river_fill(ref_data.data, zoom = zoom, meta = ref_meta, grids = grids, error_thres = 2e-1, algo = "building")
 >>>>>>> f1e3cc212975b64793229fd7c4971e653f8c6c8a
@@ -553,9 +563,12 @@ def generate_osm_rast(dest:str, map_type:str = 'river', *args):
 
     '''
 <<<<<<< HEAD
+<<<<<<< HEAD
 
     place = ' '.join(dest)
 
+=======
+>>>>>>> f1e3cc212975b64793229fd7c4971e653f8c6c8a
 =======
 >>>>>>> f1e3cc212975b64793229fd7c4971e653f8c6c8a
     if map_type == "river":
@@ -563,7 +576,11 @@ def generate_osm_rast(dest:str, map_type:str = 'river', *args):
 
     elif map_type == "building":
 <<<<<<< HEAD
+<<<<<<< HEAD
         gdf = ox.footprints_from_place(place)
+=======
+        gdf = ox.footprints_from_place(dest)
+>>>>>>> f1e3cc212975b64793229fd7c4971e653f8c6c8a
 =======
         gdf = ox.footprints_from_place(dest)
 >>>>>>> f1e3cc212975b64793229fd7c4971e653f8c6c8a
