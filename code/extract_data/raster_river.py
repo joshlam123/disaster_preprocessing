@@ -458,7 +458,7 @@ def generate_maps(working_folder:str, folder:str, map_iter:list, ext:dict):
         print(" ---- GENERATING LOW RES DATA ----")
         # generate low resolution data.
         generate_res_data(folder = working_folder, \
-                          ref_file = working_folder + ext['generated'] + 'fixed_raster/dem.tif', map_type = map_item, folder_ext = ext['generated'])
+                          ref_file = working_folder + ext['generated'] + 'fixed_raster/rr.tif', map_type = map_item, folder_ext = ext['generated'])
 
 
         # open the low res and the high res file we just created
