@@ -365,33 +365,30 @@ def generate_res_data(folder:str, ref_file:str = 'dem_hi_res.tif', map_type:str 
     refFil = ref_file
 
     if map_type == "river":
-
-        if "hi_res" in ref_file:
-            dstFil, saveShpFil = folder + folder_ext + 'fixed_raster/chanmask_hi_res.tif', folder + folder_ext + 'river/river.shp'
-        else:
-            dstFil, saveShpFil = folder + folder_ext + 'fixed_raster/chanmask.tif', folder + folder_ext + 'river/river.shp'
-
-        if not checkExist(folder + folder_ext + "river/", 'river.shp'):
-            gdf = generate_osm_rast(['North Jakarta', 'Indonesia'], "river", 'river', 'stream', 'riverbank', 'tidal', 'channel')
-            gdf.to_file(driver = 'ESRI Shapefile', filename = saveShpFil)
-
-        else:
-            gdf = gpd.read_file(saveShpFil)
-
+        title = "chanmask"
     elif map_type == "building":
-        if "hi_res" in ref_file:
-            dstFil, saveShpFil = folder + folder_ext + 'fixed_raster/building_hi_res.tif', \
-                                folder + folder_ext + 'building/building.shp'
-        else:
-            dstFil, saveShpFil = folder + folder_ext + 'fixed_raster/building.tif', \
-                                folder + folder_ext + 'building/building.shp'
+        title = "building"
 
-        if not checkExist(folder + folder_ext + "building/", 'building.shp'):
+    if "hi_res" in ref_file:
+        dstFil, saveShpFil = folder + folder_ext + f'fixed_raster/{title}_hi_res.tif', \
+                            folder + folder_ext + f'{map_type}/{map_type}.shp'
+    else:
+        dstFil, saveShpFil = folder + folder_ext + f'fixed_raster/{title}.tif', \
+                            folder + folder_ext + f'{map_type}/{map_type}.shp'
+
+
+    full_file_extension = folder + folder_ext + f"{map_type}/" 
+    print("FULL FILE EXTENSION", full_file_extension)
+    if not checkExist(f'{map_type}.shp', full_file_extension):
+        if title == "chanmask":
+            gdf = generate_osm_rast(['North Jakarta', 'Indonesia'], "river", 'river', 'stream', 'riverbank', 'tidal', 'channel')
+        else:
             gdf = generate_osm_rast(['North Jakarta', 'Indonesia'], "building")
-            gdf.to_file(driver = 'ESRI Shapefile', filename = saveShpFil)
 
-        else:
-            gdf = gpd.read_file(saveShpFil)
+        gdf.to_file(driver = 'ESRI Shapefile', filename = saveShpFil)
+
+    else:
+        gdf = gpd.read_file(saveShpFil)
 
 
     print("SHAPE FILE REFERENCE", saveShpFil)
@@ -477,7 +474,7 @@ def generate_maps(working_folder:str, folder:str, map_iter:list, ext:dict):
         zoom = set_zoom_scale(hi_res_meta, ref_meta)
         grids = GridData(data = bldg_arr, zoom = zoom, nd = hi_res_meta['nodata'])
 
-        points, geos = generate_river_fill(ref_data.data, zoom = zoom, meta = ref_meta, grids = grids, error_thres = 2e-1, algo = "building")
+        points, geos = generate_river_fill(ref_data.data, zoom = zoom, meta = ref_meta, grids = grids, error_thres = 1e-1, algo = "building")
         get_percentage_corrected(points, ref_data)
 
         df = generate_dataframe_from_points(points = points, geos = geos)
@@ -521,11 +518,14 @@ def generate_osm_rast(dest:str, map_type:str = 'river', *args):
     river_rast(['North Jakarta', 'Indonesia'], 'river', 'stream', 'riverbank', 'tidal', 'channel')
 
     '''
+
+    place = ' '.join(dest)
+
     if map_type == "river":
         gdf = get_place_river(dest, *[i for i in args])
 
     elif map_type == "building":
-        gdf = ox.footprints_from_place(dest)
+        gdf = ox.footprints_from_place(place)
 
     gdf = explode_df(gdf)
     gdf = preprocess_gdf(gdf, 'all')
