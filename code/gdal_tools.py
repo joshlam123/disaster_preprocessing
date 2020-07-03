@@ -1,5 +1,5 @@
 from subprocess import Popen, PIPE
-from preprocessing.common import move_files, chg_to_folder
+from .common import move_files, chg_to_folder
 import os, re, pandas as pd
 
 def gdal_set_up_cubic_spline(path:str, curr_folder:str=os.getcwd(), src:str='dem.tif', dest:str='dem_cubic.tif'):

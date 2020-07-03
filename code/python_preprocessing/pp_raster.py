@@ -2,7 +2,7 @@ import pandas as pd, numpy as np
 import os, json, math
 
 from shapely.geometry import Point, LineString, Polygon, MultiPolygon, mapping
-from preprocessing.common import *
+from ..common import *
 from rasterio.mask import mask
 from rasterio.plot import show, plotting_extent
 from rasterio.merge import merge
