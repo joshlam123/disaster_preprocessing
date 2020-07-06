@@ -30,7 +30,7 @@ class GridData:
         self.total_counted_grids = 0
         self.nd = nd
         
-        print("DATA SIZE", data.shape)
+        print("DATA SIZE", data.shape, "NODATA", self.nd)
         
     def __call__(self, counter:int):
         '''

@@ -281,7 +281,7 @@ def obtain_crs(file:str):
     return meta['crs']
 
 # %%time
-def get_percentage_corrected(original_points:list, corrected_points:list):
+def get_percentage_corrected(original_points:list, corrected_points:list, nodata:int):
     '''
     This is a function used to count the percentage of corrected cells.
 
@@ -291,6 +291,8 @@ def get_percentage_corrected(original_points:list, corrected_points:list):
         original_points: a list of data points (Required)
 
         corrected_points: a list of corrected datapoints (Required)
+
+        nodata: a nodata value (Required)
 
 
     Output
@@ -313,12 +315,12 @@ def get_percentage_corrected(original_points:list, corrected_points:list):
         total_corrected = 0 
         for item in points:
             data_arr = np.array(item) if type(item) != np.array else item
-            total_corrected += len(data_arr[data_arr>0])
+            total_corrected += len(data_arr[data_arr != nodata])
         return total_corrected
     
     original_num = corrected_pts(original_points)
     corrected_num = corrected_pts(corrected_points)
-    perc_corrected = (corrected_num - original_num) / original_num
+    perc_corrected = (corrected_num - original_num) / original_num if original_num != 0 else 0
     
     print("ORIGINAL NUMBER OF POINTS:", original_num)
     print("CORRECTED NUMBER OF POINTS:", corrected_num)
@@ -365,8 +367,7 @@ def generate_res_data(folder:str, ref_file:str = 'dem_hi_res.tif', map_type:str 
     refFil = ref_file
 
     if map_type == "river":
-<<<<<<< HEAD
-<<<<<<< HEAD
+
         title = "chanmask"
     elif map_type == "building":
         title = "building"
@@ -391,40 +392,7 @@ def generate_res_data(folder:str, ref_file:str = 'dem_hi_res.tif', map_type:str 
 
     else:
         gdf = gpd.read_file(saveShpFil)
-=======
-=======
->>>>>>> f1e3cc212975b64793229fd7c4971e653f8c6c8a
 
-        if "hi_res" in ref_file:
-            dstFil, saveShpFil = folder + folder_ext + 'fixed_raster/chanmask_hi_res.tif', folder + folder_ext + 'river/river.shp'
-        else:
-            dstFil, saveShpFil = folder + folder_ext + 'fixed_raster/chanmask.tif', folder + folder_ext + 'river/river.shp'
-
-        if not checkExist(folder + folder_ext + "river/", 'river.shp'):
-            gdf = generate_osm_rast(['North Jakarta', 'Indonesia'], "river", 'river', 'stream', 'riverbank', 'tidal', 'channel')
-            gdf.to_file(driver = 'ESRI Shapefile', filename = saveShpFil)
-
-        else:
-            gdf = gpd.read_file(saveShpFil)
-
-    elif map_type == "building":
-        if "hi_res" in ref_file:
-            dstFil, saveShpFil = folder + folder_ext + 'fixed_raster/building_hi_res.tif', \
-                                folder + folder_ext + 'building/building.shp'
-        else:
-            dstFil, saveShpFil = folder + folder_ext + 'fixed_raster/building.tif', \
-                                folder + folder_ext + 'building/building.shp'
-
-        if not checkExist(folder + folder_ext + "building/", 'building.shp'):
-            gdf = generate_osm_rast(['North Jakarta', 'Indonesia'], "building")
-            gdf.to_file(driver = 'ESRI Shapefile', filename = saveShpFil)
-
-        else:
-            gdf = gpd.read_file(saveShpFil)
-<<<<<<< HEAD
->>>>>>> f1e3cc212975b64793229fd7c4971e653f8c6c8a
-=======
->>>>>>> f1e3cc212975b64793229fd7c4971e653f8c6c8a
 
 
     print("SHAPE FILE REFERENCE", saveShpFil)
@@ -483,56 +451,59 @@ def generate_maps(working_folder:str, folder:str, map_iter:list, ext:dict):
 
         print("********** GENERATING CORRECTION LAYER FOR", map_item, "**********")
 
-        # generate high resolution data.
-        print(" ---- GENERATING HIGH RES DATA ----")
-        generate_res_data(folder = working_folder, \
-                          ref_file = dem_folder + "modified_dem/" + dem_hi_res, map_type = map_item, folder_ext = ext['generated'])
 
-        print(" ---- GENERATING LOW RES DATA ----")
-        # generate low resolution data.
-        generate_res_data(folder = working_folder, \
-                          ref_file = working_folder + ext['generated'] + 'fixed_raster/rr.tif', map_type = map_item, folder_ext = ext['generated'])
+        if not checkExist(f'{title}.tif', folder):
+            print(" ---- GENERATING LOW RES DATA ----")
+            # generate low resolution data.
+            generate_res_data(folder = working_folder, \
+                              ref_file = working_folder + ext['generated'] + 'fixed_raster/rr.tif', map_type = map_item, folder_ext = ext['generated'])
+
+        if not checkExist(f'{title}_hi_res.tif', folder):
+            # generate high resolution data.
+            print(" ---- GENERATING HIGH RES DATA ----")
+            generate_res_data(folder = working_folder, \
+                              ref_file = dem_folder + "modified_dem/" + dem_hi_res, map_type = map_item, folder_ext = ext['generated'])
 
 
-        # open the low res and the high res file we just created
-        print("OPENING REFERNCE LOW RES DEM FILE")
-        reference_file = folder + "dem.tif"
-        ref_data, ref_meta = open_rio(reference_file)
+        if not checkExist(f'{title}_corrected.tif', folder):
+            # open the low res and the high res file we just created
+            print("OPENING REFERENCE LOW RES DEM FILE")
 
-        print("OPENING GENERATED HIGH RES CHANNEL MASK FILE")
-        src_file = folder + f'{title}_hi_res.tif'
-        hi_res_data, hi_res_meta = open_rio(src_file)
-        bldg_arr = hi_res_data.data
+            # if map_item == "river":
+            reference_file = folder + f"{title}.tif"
+            # else:
+            #     reference_file = folder + "dem.tif"
 
-        print("SIZE OF NON ZERO CELLS (HIGH RES", "BUILDING", "DATA):", len(bldg_arr[bldg_arr != hi_res_meta['nodata']]))
-        print("HIGH RESOLUTION GRID SIZE", hi_res_meta['width'] * hi_res_meta['height'])
-        
-        zoom = set_zoom_scale(hi_res_meta, ref_meta)
-        grids = GridData(data = bldg_arr, zoom = zoom, nd = hi_res_meta['nodata'])
+            ref_data, ref_meta = open_rio(reference_file)
 
-<<<<<<< HEAD
-<<<<<<< HEAD
-        points, geos = generate_river_fill(ref_data.data, zoom = zoom, meta = ref_meta, grids = grids, error_thres = 1e-1, algo = "building")
-=======
-        points, geos = generate_river_fill(ref_data.data, zoom = zoom, meta = ref_meta, grids = grids, error_thres = 2e-1, algo = "building")
->>>>>>> f1e3cc212975b64793229fd7c4971e653f8c6c8a
-=======
-        points, geos = generate_river_fill(ref_data.data, zoom = zoom, meta = ref_meta, grids = grids, error_thres = 2e-1, algo = "building")
->>>>>>> f1e3cc212975b64793229fd7c4971e653f8c6c8a
-        get_percentage_corrected(points, ref_data)
+            print(f"OPENING GENERATED HIGH RES {title} MASK FILE")
+            src_file = folder + f'{title}_hi_res.tif'
+            hi_res_data, hi_res_meta = open_rio(src_file)
 
-        df = generate_dataframe_from_points(points = points, geos = geos)
-        gdf = gpd.GeoDataFrame(df)
-        
-        print(gdf.head())
-        src_file = folder + "dem.tif"
-        
-        write_gdf_to_raster_gdal(data = gdf, selector = "data", src_file = src_file, \
-                                 dest_file = folder + f'{title}_2.tif', \
-                                 meta = ref_meta)
-        
-        print("WROTE FILE FOR ITEM", map_item, "TO", folder + f'{map_item}_2.tif')
+            print("SIZE OF NON ZERO CELLS (HIGH RES", title, "DATA):", len(hi_res_data.data[hi_res_data.data != hi_res_meta['nodata']]))
+            print("SIZE OF NON ZERO CELLS (LOW RES", title, "DATA):", len(ref_data.data[ref_data.data != ref_meta['nodata']]))
 
+            print("HIGH RESOLUTION GRID SIZE", hi_res_meta['width'] * hi_res_meta['height'])
+            
+            zoom = set_zoom_scale(hi_res_meta, ref_meta)
+            grids = GridData(data = hi_res_data.data, zoom = zoom, nd = hi_res_meta['nodata'])
+
+            points, geos = generate_river_fill(ref_data.data, zoom = zoom, meta = ref_meta, grids = grids, error_thres = 1.5e-1, algo = map_item)
+
+            get_percentage_corrected(ref_data.data, points, ref_meta['nodata'])
+
+            df = generate_dataframe_from_points(points = points, geos = geos)
+            gdf = gpd.GeoDataFrame(df)
+            
+            src_file = folder + "dem.tif"
+            
+            write_gdf_to_raster_gdal(data = gdf, selector = "data", src_file = src_file, \
+                                     dest_file = folder + f'{title}_corrected.tif', \
+                                     meta = ref_meta)
+            
+            print("WROTE FILE FOR ITEM", map_item, "TO", folder + f'{map_item}_corrected.tif')
+
+        print("********** CREATED CORRECTION LAYER FOR", map_item, "**********")
 
 def generate_osm_rast(dest:str, map_type:str = 'river', *args):
     '''
@@ -562,28 +533,15 @@ def generate_osm_rast(dest:str, map_type:str = 'river', *args):
     river_rast(['North Jakarta', 'Indonesia'], 'river', 'stream', 'riverbank', 'tidal', 'channel')
 
     '''
-<<<<<<< HEAD
-<<<<<<< HEAD
-
     place = ' '.join(dest)
 
-=======
->>>>>>> f1e3cc212975b64793229fd7c4971e653f8c6c8a
-=======
->>>>>>> f1e3cc212975b64793229fd7c4971e653f8c6c8a
     if map_type == "river":
         gdf = get_place_river(dest, *[i for i in args])
 
+    # prone to http timeout error. 
     elif map_type == "building":
-<<<<<<< HEAD
-<<<<<<< HEAD
+        place = ', '.join(place)
         gdf = ox.footprints_from_place(place)
-=======
-        gdf = ox.footprints_from_place(dest)
->>>>>>> f1e3cc212975b64793229fd7c4971e653f8c6c8a
-=======
-        gdf = ox.footprints_from_place(dest)
->>>>>>> f1e3cc212975b64793229fd7c4971e653f8c6c8a
 
     gdf = explode_df(gdf)
     gdf = preprocess_gdf(gdf, 'all')

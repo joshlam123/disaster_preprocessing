@@ -591,15 +591,23 @@ def save_gpkg_to_layer(data_src:str, working_folder:str):
     
     print("GPKG DATA SUCCESSFULLY SAVED TO:", folder)
 
-def generate_grids(grid_size:int = 5) -> list:
+def generate_grids(center_x:int, center_y:int, length:int, height:int, grid_size:int = 5) -> list:
     '''
     This function is used to generate a grid_size which corresponds from (-grid_size, grid_size) to (grid_size, grid_size)
     in single increments
     
     PARAMETERS
     ----------
-    
-        grid_size: an integer representing the grid size you wish to search in the correction algorithm. (Required)
+
+        center_x: the x_coordinate of center of the grid so that it generates around the grid and doesn't extend beyond the grid (Required)
+
+        center_y: the y_coordinate of center of the grid so that it generates around the grid and doesn't extend beyond the grid (Required)
+
+        length: the width of the grid (Required)
+
+        height: the height of the grid (Required)
+
+        grid_size: an integer representing the grid size you wish to search in the correction algorithm. (Optional)
         
     OUTPUT
     ------
@@ -612,7 +620,14 @@ def generate_grids(grid_size:int = 5) -> list:
     grid = generate_grids()
     
     '''
-    grid = [[(i,j) for j in range(-grid_size, grid_size)] for i in range(-grid_size, grid_size)]
+    min_start_pt_x = int(max(-center_x, -grid_size))
+    max_end_pt_x = int(min(length - center_x, grid_size))
+
+    min_start_pt_y = int(max(-center_y, -grid_size))
+    max_end_pt_y = int(min(height - center_y, grid_size))
+
+    grid = [[(i,j) for j in range(min_start_pt_x, max_end_pt_x)] for i in range(min_start_pt_y, max_end_pt_y)]
+
     return grid
 
 def set_zoom_scale(meta1:dict, meta2:dict) -> int:
@@ -710,17 +725,19 @@ def generate_river_fill(data:np.array, zoom:tuple, meta:dict, grids:GridData, er
 
     # grids = GridData(data = hi_res_data.data, zoom = zoom)
     
-    traverse_grid = generate_grids()
     
     # get the nodata value
     nd = meta['nodata']
     map_trans = meta['transform']
     
     print("---- PROCESSING ----")
+    print("ERROR THRESHOLD", error_thres)
+    print("ZOOM SCALE", zoom_scale)
+    print("ALGO TYPE", algo)
     print("NODATA", nd)
     print("DATA TRANSFORM", map_trans)
 
-    def fill_algo(counter:int, item):
+    def fill_algo(counter:int, col_cnt:int, item:int):
         '''
         Fill algo is an inner function of generate_river_fill. Created so that it can take the variables instantiated
         in generate_river_fill without having to redeclare any of the variables.
@@ -729,6 +746,8 @@ def generate_river_fill(data:np.array, zoom:tuple, meta:dict, grids:GridData, er
         ----------
 
             counter: a numerical counter (Required)
+
+            col_cnt: a column counter (Required)
             
             item: a data entry (Required)
 
@@ -739,16 +758,17 @@ def generate_river_fill(data:np.array, zoom:tuple, meta:dict, grids:GridData, er
         
         '''
 
+        traverse_grid = generate_grids(center_x = col_cnt, center_y = counter, length = meta['width'], height = meta['height'], grid_size = 3)
         
         if algo == "river":
             # account for fill
-            fill = 1 if grids(counter) / no_grid_cells > error_thres or item == 1 else 0 
+            fill = 1 if grids(counter) / no_grid_cells > error_thres or item == 1 else nd
 
-            if fill == 0 and item != nd:
+            if fill == nd and item == 0:
 
                 # if a n * n grid around it has no filled values, then declare it as nothing 
 
-                tmp_row, tmp_col = counter, edx
+                tmp_row, tmp_col = counter, col_cnt
                 tmp_filled_grids = 0 
 
                 for ent1 in traverse_grid:
@@ -762,13 +782,13 @@ def generate_river_fill(data:np.array, zoom:tuple, meta:dict, grids:GridData, er
                     tmp_row += ent2[0]
     #                 print(tmp_col, tmp_row)
 
-                if tmp_filled_grids < (len(traverse_grid)*len(traverse_grid[0])):
-                    fill = 0 
-                else:
+                if tmp_filled_grids < (len(traverse_grid)*len(traverse_grid[0])) * error_thres:   
                     fill = 1
+                else:
+                    fill = nd
             
         else:
-            
+        
             fill = grids(counter) / no_grid_cells 
                 
         return fill
@@ -787,7 +807,7 @@ def generate_river_fill(data:np.array, zoom:tuple, meta:dict, grids:GridData, er
 
         for edx, item in enumerate(entry):
             
-            fill = fill_algo(counter, item)
+            fill = fill_algo(counter = counter, col_cnt = edx, item = item)
 
             temp_points.append(fill)
             temp_geos.append(Point([top_left_x, top_left_y]))
@@ -797,6 +817,7 @@ def generate_river_fill(data:np.array, zoom:tuple, meta:dict, grids:GridData, er
         points.append(temp_points)
         geos.append(temp_geos)
         counter += 1    
+
         grids.reset_col_counter()
         
         
@@ -1446,6 +1467,5 @@ def show_sample(file:str):
     red = raster.read(1)
     red = red.astype(float)
 
-    fig = plt.figure(figsize=(12,8))
     show(red)
 
